@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A3F8F">
+<meta name="robots" content="noindex, nofollow">
+<title>Payment & Contact | The Prayer App</title>
+<style>
+:root{--blue:#0A3F8F;--gold:#E9B93C;--white:#FFFFFF;--light:#F0F4FA;--text:#121212}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;min-height:100%;overflow-x:hidden;background:#E7EDF5;color:var(--text);font-family:Roboto,Arial,sans-serif;font-size:19px;-webkit-font-smoothing:antialiased}
+body{width:100dvw;min-height:100dvh;display:flex;flex-direction:column;gap:10px}
+p,h1,h2,strong{overflow-wrap:break-word}
+.surface-card{width:100dvw;flex-shrink:0;display:flex;flex-direction:column;padding:24px 20px;gap:14px}
+.card-head{background:var(--blue);color:var(--white);border-left:5px solid var(--gold)}
+.card-head h1{color:var(--gold);font-size:27px;font-weight:900;line-height:1.35}
+.card-head p{font-size:19px;line-height:1.55;font-weight:500}
+.card-pay{background:var(--light)}
+.card-contact{background:var(--white)}
+.section-title{color:var(--blue);font-size:23px;font-weight:900;line-height:1.3}
+.detail{background:var(--white);border:1px solid rgba(10,63,143,.14);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:4px}
+.detail span{font-size:19px;font-weight:500;color:#303030}
+.detail strong{color:var(--blue);font-size:23px;font-weight:900;line-height:1.35;user-select:all;-webkit-user-select:all}
+.note{font-size:19px;line-height:1.55;font-weight:500}
+.icon-row{display:flex;gap:14px}
+.icon-btn{flex:1;min-width:0;aspect-ratio:1/1;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;-webkit-tap-highlight-color:transparent}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn svg{width:44%;height:44%}
+.mail{background:#EA4335}.fb{background:#1877F2}.wa{background:#25D366}.ph{background:#33B5F0}
+</style>
+</head>
+<body>
+
+<section class="surface-card card-head">
+  <h1>PAYMENT & CONTACT</h1>
+  <p>Make your payment, then send your receipt. Once your payment is confirmed, I will send you a personal access code to unlock your e-book.</p>
+</section>
+
+<section class="surface-card card-pay">
+  <h2 class="section-title">Payment Details</h2>
+  <div class="detail"><span>Bank</span><strong>Guaranty Trust Bank</strong></div>
+  <div class="detail"><span>Account Name</span><strong>Chris Johnson</strong></div>
+  <div class="detail"><span>Account Number</span><strong>0123456789</strong></div>
+</section>
+
+<section class="surface-card card-contact">
+  <h2 class="section-title">Contact Me</h2>
+  <p class="note">Send your payment receipt via WhatsApp or Email.</p>
+  <div class="icon-row">
+    <a class="icon-btn mail" href="mailto:support@ministry.org" aria-label="Email">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M22 7l-10 7L2 7"/></svg>
+    </a>
+    <a class="icon-btn fb" href="https://facebook.com/XXXX" aria-label="Facebook" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#fff"/><path fill="#1877F2" d="M13.2 21.5v-7.3h2.5l.4-2.9h-2.9V9.5c0-.8.2-1.4 1.4-1.4h1.6V5.5c-.3 0-1.2-.1-2.3-.1-2.3 0-3.8 1.4-3.8 3.9v2H7.6v2.9h2.5v7.3z"/></svg>
+    </a>
+    <a class="icon-btn wa" href="https://wa.me/234XXXXXXXXXX" aria-label="WhatsApp" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l1.6-4.8A9 9 0 1 1 8 19.4L3 21z"/><path d="M9 9c0 3 3 6 6 6l1.5-1.5-2-1-1 .8c-1-.4-2-1.4-2.4-2.4l.8-1-1-2L9 9z"/></svg>
+    </a>
+    <a class="icon-btn ph" href="tel:+234XXXXXXXXXX" aria-label="Phone">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>
+    </a>
+  </div>
+</section>
+
+</body>
+</html>
