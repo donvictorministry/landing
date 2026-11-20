@@ -1,0 +1,284 @@
+(function () {
+  'use strict';
+
+  /* Error correction level M (capacity up to ~213 bytes at Version 10) */
+  var ECC = [10,16,26,18,24,16,18,22,22,26];
+  var BLK = [1,1,1,2,2,4,4,4,5,5];
+
+  function rawModules(v) {
+    var r = (16 * v + 128) * v + 64, n;
+    if (v >= 2) {
+      n = Math.floor(v / 7) + 2;
+      r -= (25 * n - 10) * n - 55;
+      if (v >= 7) r -= 36;
+    }
+    return r;
+  }
+
+  function dataCw(v) {
+    return Math.floor(rawModules(v) / 8) - ECC[v - 1] * BLK[v - 1];
+  }
+
+  function bytesOf(t) {
+    var s = unescape(encodeURIComponent(t)), a = [];
+    for (var i = 0; i < s.length; i++) a.push(s.charCodeAt(i));
+    return a;
+  }
+
+  function mul(x, y) {
+    var z = 0;
+    for (var i = 7; i >= 0; i--) {
+      z = (z << 1) ^ ((z >>> 7) * 0x11D);
+      z ^= ((y >>> i) & 1) * x;
+    }
+    return z;
+  }
+
+  function rsDiv(d) {
+    var r = [], root = 1, i, j;
+    for (i = 0; i < d - 1; i++) r.push(0);
+    r.push(1);
+    for (i = 0; i < d; i++) {
+      for (j = 0; j < d; j++) {
+        r[j] = mul(r[j], root);
+        if (j + 1 < d) r[j] ^= r[j + 1];
+      }
+      root = mul(root, 2);
+    }
+    return r;
+  }
+
+  function rsRem(data, div) {
+    var r = div.map(function () { return 0; });
+    data.forEach(function (b) {
+      var f = b ^ r.shift();
+      r.push(0);
+      div.forEach(function (c, i) { r[i] ^= mul(c, f); });
+    });
+    return r;
+  }
+
+  function encode(text) {
+    var data = bytesOf(text);
+    var v, bits = [], i, k;
+
+    for (v = 1; v <= 10; v++) {
+      if (4 + (v < 10 ? 8 : 16) + 8 * data.length <= dataCw(v) * 8) break;
+    }
+    if (v > 10) return null;
+
+    function put(val, len) {
+      for (var j = len - 1; j >= 0; j--) bits.push((val >>> j) & 1);
+    }
+
+    put(4, 4);
+    put(data.length, v < 10 ? 8 : 16);
+    data.forEach(function (b) { put(b, 8); });
+
+    var capBits = dataCw(v) * 8;
+    put(0, Math.min(4, capBits - bits.length));
+    put(0, (8 - bits.length % 8) % 8);
+    for (k = 0xEC; bits.length < capBits; k ^= 0xEC ^ 0x11) put(k, 8);
+
+    var cw = [];
+    for (i = 0; i < bits.length; i += 8) {
+      var b = 0;
+      for (k = 0; k < 8; k++) b = (b << 1) | bits[i + k];
+      cw.push(b);
+    }
+
+    var nb = BLK[v - 1], eccLen = ECC[v - 1];
+    var raw = Math.floor(rawModules(v) / 8);
+    var nShort = nb - raw % nb;
+    var shortLen = Math.floor(raw / nb);
+    var div = rsDiv(eccLen), blocks = [], pos = 0;
+
+    for (i = 0; i < nb; i++) {
+      var dat = cw.slice(pos, pos + shortLen - eccLen + (i < nShort ? 0 : 1));
+      pos += dat.length;
+      var ecc = rsRem(dat, div);
+      if (i < nShort) dat.push(0);
+      blocks.push(dat.concat(ecc));
+    }
+
+    var all = [];
+    for (i = 0; i < blocks[0].length; i++) {
+      blocks.forEach(function (blk, j) {
+        if (i !== shortLen - eccLen || j >= nShort) all.push(blk[i]);
+      });
+    }
+
+    var size = v * 4 + 17, m = [], f = [], y, x;
+    for (y = 0; y < size; y++) {
+      m.push(new Array(size).fill(false));
+      f.push(new Array(size).fill(false));
+    }
+
+    function set(px, py, d) { m[py][px] = d; f[py][px] = true; }
+    function bit(n, j) { return ((n >>> j) & 1) !== 0; }
+
+    for (i = 0; i < size; i++) {
+      set(6, i, i % 2 === 0);
+      set(i, 6, i % 2 === 0);
+    }
+
+    function finder(cx, cy) {
+      for (var dy = -4; dy <= 4; dy++) {
+        for (var dx = -4; dx <= 4; dx++) {
+          var d = Math.max(Math.abs(dx), Math.abs(dy));
+          if (cx + dx >= 0 && cx + dx < size && cy + dy >= 0 && cy + dy < size) {
+            set(cx + dx, cy + dy, d !== 2 && d !== 4);
+          }
+        }
+      }
+    }
+    finder(3, 3); finder(size - 4, 3); finder(3, size - 4);
+
+    var al = [];
+    if (v > 1) {
+      var na = Math.floor(v / 7) + 2;
+      var st = Math.ceil((v * 4 + 4) / (na * 2 - 2)) * 2;
+      al.push(6);
+      for (pos = size - 7; al.length < na; pos -= st) al.splice(1, 0, pos);
+    }
+
+    al.forEach(function (ax, ai) {
+      al.forEach(function (ay, aj) {
+        if ((ai === 0 && aj === 0) || (ai === 0 && aj === al.length - 1) || (ai === al.length - 1 && aj === 0)) return;
+        for (var dy = -2; dy <= 2; dy++) {
+          for (var dx = -2; dx <= 2; dx++) {
+            set(ax + dx, ay + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+          }
+        }
+      });
+    });
+
+    function format(mask) {
+      var d = (0 << 3) | mask; /* level M = 0 */
+      var rem = d, j;
+      for (j = 0; j < 10; j++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
+      var fb = ((d << 10) | rem) ^ 0x5412;
+
+      for (j = 0; j <= 5; j++) set(8, j, bit(fb, j));
+      set(8, 7, bit(fb, 6));
+      set(8, 8, bit(fb, 7));
+      set(7, 8, bit(fb, 8));
+      for (j = 9; j < 15; j++) set(14 - j, 8, bit(fb, j));
+      for (j = 0; j < 8; j++) set(size - 1 - j, 8, bit(fb, j));
+      for (j = 8; j < 15; j++) set(8, size - 15 + j, bit(fb, j));
+      set(8, size - 8, true);
+    }
+    format(0);
+
+    if (v >= 7) {
+      var vr = v, vb;
+      for (i = 0; i < 12; i++) vr = (vr << 1) ^ ((vr >>> 11) * 0x1F25);
+      vb = (v << 12) | vr;
+      for (i = 0; i < 18; i++) {
+        var col = bit(vb, i), a = size - 11 + i % 3, c = Math.floor(i / 3);
+        set(a, c, col);
+        set(c, a, col);
+      }
+    }
+
+    i = 0;
+    for (var right = size - 1; right >= 1; right -= 2) {
+      if (right === 6) right = 5;
+      for (var vert = 0; vert < size; vert++) {
+        for (var j2 = 0; j2 < 2; j2++) {
+          x = right - j2;
+          var upward = ((right + 1) & 2) === 0;
+          y = upward ? size - 1 - vert : vert;
+          if (!f[y][x] && i < all.length * 8) {
+            m[y][x] = bit(all[i >>> 3], 7 - (i & 7));
+            i++;
+          }
+        }
+      }
+    }
+
+    function mask(k) {
+      for (var yy = 0; yy < size; yy++) {
+        for (var xx = 0; xx < size; xx++) {
+          var inv;
+          switch (k) {
+            case 0: inv = (xx + yy) % 2 === 0; break;
+            case 1: inv = yy % 2 === 0; break;
+            case 2: inv = xx % 3 === 0; break;
+            case 3: inv = (xx + yy) % 3 === 0; break;
+            case 4: inv = (Math.floor(xx / 3) + Math.floor(yy / 2)) % 2 === 0; break;
+            case 5: inv = xx * yy % 2 + xx * yy % 3 === 0; break;
+            case 6: inv = (xx * yy % 2 + xx * yy % 3) % 2 === 0; break;
+            default: inv = ((xx + yy) % 2 + xx * yy % 3) % 2 === 0;
+          }
+          if (inv && !f[yy][xx]) m[yy][xx] = !m[yy][xx];
+        }
+      }
+    }
+
+    function penalty() {
+      var p = 0, dark = 0, a, b, run;
+      for (a = 0; a < size; a++) {
+        run = 1;
+        for (b = 1; b < size; b++) {
+          if (m[a][b] === m[a][b - 1]) { run++; if (run === 5) p += 3; else if (run > 5) p++; } else run = 1;
+        }
+        run = 1;
+        for (b = 1; b < size; b++) {
+          if (m[b][a] === m[b - 1][a]) { run++; if (run === 5) p += 3; else if (run > 5) p++; } else run = 1;
+        }
+      }
+      for (a = 0; a < size - 1; a++) {
+        for (b = 0; b < size - 1; b++) {
+          if (m[a][b] === m[a][b + 1] && m[a][b] === m[a + 1][b] && m[a][b] === m[a + 1][b + 1]) p += 3;
+        }
+      }
+      for (a = 0; a < size; a++) for (b = 0; b < size; b++) if (m[a][b]) dark++;
+      return p + (Math.ceil(Math.abs(dark * 20 - size * size * 10) / (size * size)) - 1) * 10;
+    }
+
+    var best = 0, bestP = Infinity, p;
+    for (k = 0; k < 8; k++) {
+      mask(k); format(k); p = penalty(); mask(k);
+      if (p < bestP) { bestP = p; best = k; }
+    }
+    mask(best); format(best);
+
+    return { size: size, m: m, version: v };
+  }
+
+  function toSvg(qr, dark, light) {
+    var n = qr.size, q = 4, out = [];
+
+    function inFinder(a, b) {
+      return (a < 7 && b < 7) || (a >= n - 7 && b < 7) || (a < 7 && b >= n - 7);
+    }
+
+    out.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + (-q) + ' ' + (-q) + ' ' + (n + 2 * q) + ' ' + (n + 2 * q) + '" role="img" aria-label="Payment QR code">');
+    out.push('<rect x="' + (-q) + '" y="' + (-q) + '" width="' + (n + 2 * q) + '" height="' + (n + 2 * q) + '" fill="' + light + '"/>');
+
+    for (var y = 0; y < n; y++) {
+      for (var x = 0; x < n; x++) {
+        if (qr.m[y][x] && !inFinder(x, y)) {
+          out.push('<rect x="' + (x + 0.02) + '" y="' + (y + 0.02) + '" width="0.96" height="0.96" fill="' + dark + '"/>');
+        }
+      }
+    }
+
+    [[0, 0], [n - 7, 0], [0, n - 7]].forEach(function (c) {
+      out.push('<rect x="' + c[0] + '" y="' + c[1] + '" width="7" height="7" fill="' + dark + '"/>');
+      out.push('<rect x="' + (c[0] + 1) + '" y="' + (c[1] + 1) + '" width="5" height="5" fill="' + light + '"/>');
+      out.push('<rect x="' + (c[0] + 2) + '" y="' + (c[1] + 2) + '" width="3" height="3" fill="' + dark + '"/>');
+    });
+
+    out.push('</svg>');
+    return out.join('');
+  }
+
+  window.dvQR = {
+    render: function (text, dark, light) {
+      var qr = encode(text);
+      return qr ? toSvg(qr, dark, light) : null;
+    }
+  };
+})();
